@@ -13,10 +13,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 
-export function SignUpForm({
+export function SignUpForm(props: React.ComponentPropsWithoutRef<"div">) {
+  return (
+    <Suspense>
+      <SignUpFormContent {...props} />
+    </Suspense>
+  );
+}
+
+function SignUpFormContent({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
@@ -26,6 +34,8 @@ export function SignUpForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +72,11 @@ export function SignUpForm({
         <CardHeader>
           <CardTitle className="text-2xl">Sign up</CardTitle>
           <CardDescription>Create a new account</CardDescription>
+          {message && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm mt-4">
+              {message}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>

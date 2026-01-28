@@ -13,10 +13,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 
-export function LoginForm({
+export function LoginForm(props: React.ComponentPropsWithoutRef<"div">) {
+  return (
+    <Suspense>
+      <LoginFormContent {...props} />
+    </Suspense>
+  );
+}
+
+function LoginFormContent({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
@@ -25,6 +33,8 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +65,11 @@ export function LoginForm({
           <CardDescription>
             Enter your email below to login to your account
           </CardDescription>
+          {message && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm mt-4">
+              {message}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
