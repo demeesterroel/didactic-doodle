@@ -1,6 +1,18 @@
+'use client'
+
 import Link from 'next/link'
 import { Globe, Lock, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export function NoteCardSkeleton() {
+    return (
+        <div className="p-5 border rounded-2xl bg-card space-y-4 h-full w-full flex flex-col">
+            <Skeleton className="h-7 w-3/4 bg-neutral-600/50" />
+            <Skeleton className="w-full flex-1 min-h-[120px] bg-neutral-200/50" />
+        </div>
+    )
+}
 
 interface NoteCardProps {
     note: any
@@ -22,7 +34,7 @@ export function NoteCard({ note, user, onEdit, onDelete, onClick, href }: NoteCa
                     onClick(note)
                 }
             }}
-            className={`group relative p-5 border rounded-2xl bg-card hover:border-muted-foreground/50 transition-colors duration-200 shadow-sm ${href || onClick || (isOwner && onEdit) ? 'cursor-pointer' : ''}`}
+            className={`group relative p-5 border rounded-2xl bg-card hover:border-muted-foreground/50 transition-colors duration-200 shadow-sm w-full h-full flex flex-col ${href || onClick || (isOwner && onEdit) ? 'cursor-pointer' : ''}`}
         >
             <div className="space-y-3">
                 <div className="flex justify-between items-start gap-2">
@@ -63,7 +75,7 @@ export function NoteCard({ note, user, onEdit, onDelete, onClick, href }: NoteCa
     )
 
     if (href) {
-        return <Link href={href} className="block">{CardContent}</Link>
+        return <Link href={href} className="block w-full h-full">{CardContent}</Link>
     }
 
     return CardContent

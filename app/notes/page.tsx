@@ -114,7 +114,7 @@ export default function NotesPage() {
                         </div>
                     ) : (
                         <Button asChild variant="default" className="rounded-full">
-                            <Link href="/auth/login">Get Started</Link>
+                            <Link href="/auth/login">Login</Link>
                         </Button>
                     )}
                 </div>

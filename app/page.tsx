@@ -9,6 +9,61 @@ import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { createClient } from "@/lib/supabase/server";
+import { NoteCard, NoteCardSkeleton } from "@/components/note/note-card";
+import { Button } from "@/components/ui/button";
+
+import { Skeleton } from "@/components/ui/skeleton";
+
+function NotesPreviewSkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+async function NotesPreview() {
+  const supabase = await createClient();
+  const { data: notes } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("is_public", true)
+    .order("modified_at", { ascending: false })
+    .limit(3);
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center justify-between">
+        <h2 className="font-medium text-xl">Latest Public Notes</h2>
+        <Button variant="ghost" asChild>
+          <Link href="/notes">View All Notes &rarr;</Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {notes?.map((note) => (
+          <NoteCard key={note.id} note={note} user={null} href={`/notes/${note.id}`} />
+        ))}
+        {(!notes || notes.length === 0) && (
+          <p className="text-muted-foreground text-center col-span-full py-8">
+            No public notes yet. be the first to <Link href="/notes/add" className="underline">create one</Link>!
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center">
@@ -33,8 +88,13 @@ export default function Home() {
         <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
           <Hero />
           <main className="flex-1 flex flex-col gap-6 px-4">
-            <h2 className="font-medium text-xl mb-4">Next steps</h2>
-            {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
+            {hasEnvVars ? (
+              <Suspense fallback={<NotesPreviewSkeleton />}>
+                <NotesPreview />
+              </Suspense>
+            ) : (
+              <ConnectSupabaseSteps />
+            )}
           </main>
         </div>
 
