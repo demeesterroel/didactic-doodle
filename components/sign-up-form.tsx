@@ -18,7 +18,7 @@ import { useState, Suspense } from "react";
 
 export function SignUpForm(props: React.ComponentPropsWithoutRef<"div">) {
   return (
-    <Suspense>
+    <Suspense fallback={<div>Loading...</div>}>
       <SignUpFormContent {...props} />
     </Suspense>
   );
