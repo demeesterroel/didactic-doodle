@@ -4,15 +4,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Globe, BookOpen, Plus, Trash2, Edit, Loader2, Lock, User, LogOut } from 'lucide-react'
+import { BookOpen, Plus, Loader2, Globe } from 'lucide-react'
 import Link from 'next/link'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { useRouter } from 'next/navigation'
 import { LogoutButton } from '@/components/logout-button'
+import { NoteCard } from '@/components/note/note-card'
+import { DeleteNoteDialog } from '@/components/note/note-delete-dialog'
 
 export default function NotesPage() {
     const [notes, setNotes] = useState<any[] | null>(null)
@@ -21,16 +19,10 @@ export default function NotesPage() {
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('all')
 
-    // Dialog State
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
-    const [currentNote, setCurrentNote] = useState<any>(null)
-    const [formData, setFormData] = useState({ title: '', content: '', is_public: false })
-    const [error, setError] = useState('')
-
     // Delete Dialog State
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [noteToDelete, setNoteToDelete] = useState<number | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const supabase = createClient()
     const router = useRouter()
@@ -49,55 +41,6 @@ export default function NotesPage() {
         fetchData()
     }, [])
 
-    const handleOpenDialog = (note?: any) => {
-        setError('')
-        if (note) {
-            setCurrentNote(note)
-            setFormData({ title: note.title || '', content: note.content || '', is_public: note.is_public })
-        } else {
-            setCurrentNote(null)
-            setFormData({ title: '', content: '', is_public: false })
-        }
-        setIsDialogOpen(true)
-    }
-
-    const handleSave = async (publish: boolean) => {
-        setIsSaving(true)
-        setError('')
-
-        if (!formData.title.trim()) {
-            setError('Title is required.')
-            setIsSaving(false)
-            return
-        }
-
-        const noteData = {
-            title: formData.title,
-            content: formData.content,
-            is_public: publish,
-            user_id: user?.id,
-            modified_at: new Date().toISOString()
-        }
-
-        let error;
-        if (currentNote?.id) {
-            const result = await supabase.from('notes').update(noteData).eq('id', currentNote.id)
-            error = result.error
-        } else {
-            const result = await supabase.from('notes').insert([noteData])
-            error = result.error
-        }
-
-        if (!error) {
-            await fetchData()
-            setIsDialogOpen(false)
-        } else {
-            console.error(error)
-            setError('Error saving note: ' + error.message)
-        }
-        setIsSaving(false)
-    }
-
     const handleDeleteClick = (id: number) => {
         setNoteToDelete(id)
         setIsDeleteDialogOpen(true)
@@ -105,6 +48,7 @@ export default function NotesPage() {
 
     const confirmDelete = async () => {
         if (!noteToDelete) return
+        setIsDeleting(true)
 
         const { error } = await supabase.from('notes').delete().eq('id', noteToDelete)
         if (!error) {
@@ -114,14 +58,24 @@ export default function NotesPage() {
         } else {
             alert('Error deleting note: ' + error.message)
         }
+        setIsDeleting(false)
     }
 
     const handleAddNoteClick = () => {
         if (!user) {
             router.push('/auth/login')
         } else {
-            handleOpenDialog()
+            router.push('/notes/add')
         }
+    }
+
+    const handleEditClick = (note: any) => {
+        router.push(`/notes/${note.id}/edit`)
+    }
+
+    const handleNoteClick = (note: any) => {
+        // Navigate to the note page (which will be intercepted by @modal)
+        router.push(`/notes/${note.id}`)
     }
 
     // Filter logic
@@ -222,136 +176,45 @@ export default function NotesPage() {
                             {/* Mobile View (Single Column) */}
                             <div className="flex md:hidden flex-col gap-4">
                                 {filteredNotes.map(note => (
-                                    <NoteCard key={note.id} note={note} user={user} onEdit={handleOpenDialog} onDelete={handleDeleteClick} />
+                                    <NoteCard
+                                        key={note.id}
+                                        note={note}
+                                        user={user}
+                                        onEdit={handleEditClick}
+                                        onDelete={handleDeleteClick}
+                                        href={`/notes/${note.id}`}
+                                    />
                                 ))}
                             </div>
 
                             {/* Tablet/Desktop View (Masonry Grid) */}
                             <div className="hidden md:flex gap-4 items-start">
-                                {/* Column 1 */}
-                                <div className="flex-1 flex flex-col gap-4">
-                                    {filteredNotes.filter((_, i) => i % 3 === 0).map(note => (
-                                        <NoteCard key={note.id} note={note} user={user} onEdit={handleOpenDialog} onDelete={handleDeleteClick} />
-                                    ))}
-                                </div>
-                                {/* Column 2 */}
-                                <div className="flex-1 flex flex-col gap-4">
-                                    {filteredNotes.filter((_, i) => i % 3 === 1).map(note => (
-                                        <NoteCard key={note.id} note={note} user={user} onEdit={handleOpenDialog} onDelete={handleDeleteClick} />
-                                    ))}
-                                </div>
-                                {/* Column 3 (Desktop Only - on tablet this col is valid but empty if we just use mod 3? 
-                                    Wait, on tablet (2 cols) mod 3 distribution will look weird: Col 1, Col 2, Empty?
-                                    Actually for true responsiveness we need a useWindowSize hook or just accept 3 cols on tablet is fine (just smaller).
-                                    Let's stick to 3 columns for MD+ to keep it simple and consistent.
-                                */}
-                                <div className="flex-1 flex flex-col gap-4">
-                                    {filteredNotes.filter((_, i) => i % 3 === 2).map(note => (
-                                        <NoteCard key={note.id} note={note} user={user} onEdit={handleOpenDialog} onDelete={handleDeleteClick} />
-                                    ))}
-                                </div>
+                                {[0, 1, 2].map(colIndex => (
+                                    <div key={colIndex} className="flex-1 flex flex-col gap-4">
+                                        {filteredNotes.filter((_, i) => i % 3 === colIndex).map(note => (
+                                            <NoteCard
+                                                key={note.id}
+                                                note={note}
+                                                user={user}
+                                                onEdit={handleEditClick}
+                                                onDelete={handleDeleteClick}
+                                                href={`/notes/${note.id}`}
+                                            />
+                                        ))}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
                 </section>
             </main>
 
-            {/* Note Dialog */}
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{currentNote ? 'Edit Note' : 'Create Note'}</DialogTitle>
-                        <DialogDescription>
-                            {currentNote ? 'Make changes to your note here.' : 'Add a new note to your included title and content.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="title">Title</Label>
-                            <Input
-                                id="title"
-                                placeholder="Note title"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className={error && !formData.title.trim() ? "border-destructive focus-visible:ring-destructive" : ""}
-                            />
-                            {error && <p className="text-sm text-destructive font-medium">{error}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="content">Content</Label>
-                            <Textarea
-                                id="content"
-                                placeholder="Write your thoughts..."
-                                className="min-h-[100px]"
-                                value={formData.content}
-                                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
-                            {currentNote && formData.is_public ? 'Make Private' : 'Save as Private'}
-                        </Button>
-                        <Button onClick={() => handleSave(true)} disabled={isSaving}>
-                            {currentNote && !formData.is_public ? 'Make Public' : 'Publish'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Note</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this note? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-                        <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
-    )
-}
-
-function NoteCard({ note, user, onEdit, onDelete }: { note: any, user: any, onEdit: (n: any) => void, onDelete: (id: number) => void }) {
-    return (
-        <div
-            onClick={() => user && user.id === note.user_id && onEdit(note)}
-            className={`group relative p-5 border rounded-2xl bg-card hover:border-muted-foreground/50 transition-colors duration-200 shadow-sm ${user && user.id === note.user_id ? 'cursor-pointer' : ''}`}
-        >
-            <div className="space-y-3">
-                <div className="flex justify-between items-start gap-2">
-                    {note.title && <h3 className="font-semibold text-lg leading-tight">{note.title}</h3>}
-                    {note.is_public ? (
-                        <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
-                    ) : (
-                        <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-                    )}
-                </div>
-
-                {note.content && (
-                    <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-relaxed line-clamp-[12]">
-                        {note.content}
-                    </p>
-                )}
-            </div>
-
-            {/* Actions */}
-            {user && user.id === note.user_id && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 flex gap-1 bg-card/80 backdrop-blur rounded-md p-1 shadow-sm border" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(note)}>
-                        <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => onDelete(note.id)}>
-                        <Trash2 className="w-3 h-3" />
-                    </Button>
-                </div>
-            )}
+            <DeleteNoteDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                onConfirm={confirmDelete}
+                isDeleting={isDeleting}
+            />
         </div>
     )
 }
